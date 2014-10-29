@@ -253,7 +253,9 @@ Enemy.prototype.step = function(dt) {
     // C: periodo de la velocidad horizontal sinusoidal
     // D: desplazamiento en el tiempo de la velocidad horizontal sinusoidal
     this.vx = this.A + this.B * Math.sin(this.C * this.t + this.D);
-    
+    //basic: { x: 100, y: -50, sprite: 'enemy_purple', B: 100, C: 2 , E: 100 }
+   // 0 + 100 * math.sin(2*0+0)
+
     // vy tiene una componente constante E, y otra que va variando
     // cíclicamente en función de la edad del enemigo (t), según la
     // sinuisoide definida por las constantes F, G y H.

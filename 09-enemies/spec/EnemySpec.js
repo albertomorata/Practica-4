@@ -60,4 +60,53 @@
      propiedades de la plantilla.
 
 */
+describe("Clase EnemySpec", function(){
 
+
+   var canvas, ctx;
+   var board;
+
+   beforeEach(function(){
+		loadFixtures('index.html');
+
+		canvas = $('#game')[0];
+		expect(canvas).toExist();
+
+		ctx = canvas.getContext('2d');
+		expect(ctx).toBeDefined();
+
+		oldGame = Game;
+		SpriteSheet.load (sprites,function(){});
+    	});
+
+    afterEach(function(){
+        Game = oldGame;
+    });
+
+	it("draw()", function(){
+		spyOn(SpriteSheet, "draw");
+		var enemigo = new Enemy(enemies.basic);
+		enemigo.draw(ctx);
+		expect(SpriteSheet.draw).toHaveBeenCalled();
+		expect(SpriteSheet.draw.calls[0].args[0]).toEqual(ctx);
+		expect(SpriteSheet.draw.calls[0].args[1]).toEqual("enemy_purple");
+		expect(SpriteSheet.draw.calls[0].args[1]).toEqual(enemigo.sprite);
+		expect(SpriteSheet.draw.calls[0].args[2]).toEqual(enemigo.x);
+		expect(SpriteSheet.draw.calls[0].args[3]).toEqual(enemigo.y);
+	});
+
+	it("step()", function(){
+		var enemigo = new Enemy(enemies.basic);
+		var dt = 0.2;
+		enemigo.step(dt);
+		expect(enemigo.x).toEqual(enemies.basic.x+(enemigo.vx)*dt);
+		expect(enemigo.y).toEqual(enemies.basic.y+(enemigo.vy)*dt);
+
+      var enemigo2 = new Enemy(enemies.basic, { y: enemies.height+1});//acabar!!
+      enemigo2.board = {remove: function(){}};
+		spyOn(enemigo2.board, "remove");
+		enemigo2.step(dt);
+		expect(enemigo2.board.remove).toHaveBeenCalled();
+	});
+
+});
