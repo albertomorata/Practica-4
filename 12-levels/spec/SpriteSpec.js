@@ -1,0 +1,184 @@
+/*
+
+  SpriteSpec
+
+*/
+
+describe("Clase SpriteSpec", function(){
+
+
+   var canvas, ctx;
+   var board;
+
+   beforeEach(function(){
+		loadFixtures('index.html');
+
+		canvas = $('#game')[0];
+		expect(canvas).toExist();
+
+		ctx = canvas.getContext('2d');
+		expect(ctx).toBeDefined();
+
+		oldGame = Game;
+		SpriteSheet.load (sprites,function(){});
+    	});
+
+    afterEach(function(){
+        Game = oldGame;
+    });
+
+
+	it("Clase PlayerShip", function(){
+		// Start variables for autocheck
+		var sprites = {
+			ship: { sx: 0, sy: 0, w: 37, h: 42, frames: 1 }
+		};
+		Game = {width: 320, height: 480};
+
+		// Pruebo setup(), constructor
+		var miNave = new PlayerShip();
+		expect(miNave.reload).toEqual(miNave.reloadTime);
+		expect(miNave.x).toEqual(Game.width/2 - miNave.w / 2);
+		expect(miNave.y).toEqual(Game.height - 10 - miNave.h);
+
+		// Pruebo draw()
+		spyOn(SpriteSheet, "draw");
+
+		miNave.draw();
+		expect(SpriteSheet.draw).toHaveBeenCalled();
+	 	expect(SpriteSheet.draw.calls[0].args[1]).toEqual("ship");
+	 	expect(SpriteSheet.draw.calls[0].args[2]).toEqual(miNave.x);
+	 	expect(SpriteSheet.draw.calls[0].args[3]).toEqual(miNave.y);
+	 	expect(SpriteSheet.draw.calls[0].args[4]).toEqual(0);
+
+		// Pruebo step()
+		Game = {width: 320, height: 480, keys: {'left': false, 'right': false}};
+		var miNave = new PlayerShip();	
+	 	miNave.step(1);
+		expect(miNave.x).toEqual(Game.width/2 - miNave.w / 2);
+		// Con left: true
+		Game.keys['left'] = true;	
+	 	miNave.step(1);
+		expect(miNave.x).toEqual(0);
+		// Con fire: true
+		Game.keys['fire'] = true;
+		miNave.board = {add: function(){}};
+		spyOn(miNave.board,"add");
+		miNave.step(3);
+		expect(miNave.board.add).toHaveBeenCalled();
+    });
+
+	it("Clase PlayerMissile", function(){
+		// Start variables for autocheck
+		var sprites = {
+			missile: { sx: 0, sy: 30, w: 2, h: 10, frames: 1 }
+		};
+		Game = {width: 320, height: 480};
+
+		// Pruebo setup(), constructor
+		var x = 2;
+		var y = 8;
+		var missile = new PlayerMissile(x,y);
+		expect(missile.x).toEqual(x - missile.w/2);
+		expect(missile.y).toEqual(y - missile.h);
+
+		// Pruebo draw()
+		spyOn(SpriteSheet, "draw");
+		missile.draw(ctx);
+		expect(SpriteSheet.draw).toHaveBeenCalled();
+		expect(SpriteSheet.draw.calls[0].args[0]).toEqual(ctx);
+		expect(SpriteSheet.draw.calls[0].args[1]).toEqual("missile");
+		expect(SpriteSheet.draw.calls[0].args[2]).toEqual(missile.x);
+		expect(SpriteSheet.draw.calls[0].args[3]).toEqual(missile.y);
+
+		// Pruebo step()
+		var missile2 = new PlayerMissile(2,180);
+		var dt = 0.2;
+		missile2.board = {remove: function(){}, collide: function() {}};
+		missile2.step(dt);
+		expect(missile2.y).toEqual(180 - missile.h + missile.vy * dt);
+				
+		var missile3 = new PlayerMissile(2,9);
+		missile3.board = {remove: function(){}, collide: function() {}};
+		spyOn(missile3.board, "remove");
+		missile3.step(dt);
+		expect(missile3.board.remove).toHaveBeenCalled();
+    });
+
+	it("Clase Enemy", function(){
+		// Start variables for autocheck
+		var sprites = {
+			enemy_purple: { sx: 37, sy: 0, w: 42, h: 43, frames: 1 }
+		};
+
+		var enemies = {
+			basic: { x: 100, y: -50, sprite: 'enemy_purple', B: 100, C: 4, E: 100 }
+		};
+		Game = {width: 320, height: 480};
+
+		// Pruebo setup (), constructor
+		var enemigo = new Enemy(enemies.basic);
+		expect(enemigo.y).toBe(-50);
+
+		var enemigo2 = new Enemy(enemies.basic, {x: 50, sprite: 'enemy_bee'});
+		expect(enemigo2.x).toBe(50);
+		expect(enemigo2.sprite).toEqual('enemy_bee');
+
+		// Pruebo draw()
+		spyOn(SpriteSheet, "draw");
+		enemigo.draw(ctx);
+		expect(SpriteSheet.draw).toHaveBeenCalled();
+		expect(SpriteSheet.draw.calls[0].args[0]).toEqual(ctx);
+		expect(SpriteSheet.draw.calls[0].args[1]).toEqual("enemy_purple");
+		expect(SpriteSheet.draw.calls[0].args[1]).toEqual(enemigo.sprite);
+		expect(SpriteSheet.draw.calls[0].args[2]).toEqual(enemigo.x);
+		expect(SpriteSheet.draw.calls[0].args[3]).toEqual(enemigo.y);
+		
+		// Pruebo step()
+		var dt = 0.2;
+		enemigo.board= {remove: function(){}, collide: function() {}};
+		enemigo.step(dt);
+		expect(enemigo.x).toEqual(enemies.basic.x+(enemigo.vx)*dt);
+		expect(enemigo.y).toEqual(enemies.basic.y+(enemigo.vy)*dt);
+
+		// Compruebo el caso y>Game.Height
+		var enemigo2 = new Enemy(enemies.basic, { y: Game.height+1});
+		enemigo2.board = {remove: function(){}, collide: function() {}};
+		spyOn(enemigo2.board, "remove");
+		enemigo2.step(dt);
+		expect(enemigo2.board.remove).toHaveBeenCalled();	
+	});
+
+	it("Clase FireBall", function(){
+		// Start variables for autocheck
+		var sprites = {
+			fireball: { sx: 0, sy: 64, w: 64, h: 64, frames: 1 } 
+		};
+		Game = {width: 320, height: 480};
+
+		// Pruebo setup(), constructor
+		var fireball = new PlayerFireBall(2,8,2);
+		expect(fireball.x).toEqual(2 - fireball.w/2);
+		expect(fireball.y).toEqual(8 - fireball.h);
+		// Pruebo draw()
+		spyOn(SpriteSheet, "draw");
+		fireball.draw(ctx);
+		expect(SpriteSheet.draw).toHaveBeenCalled();
+		expect(SpriteSheet.draw.calls[0].args[0]).toEqual(ctx);
+		expect(SpriteSheet.draw.calls[0].args[1]).toEqual("fireball");
+		expect(SpriteSheet.draw.calls[0].args[2]).toEqual(fireball.x);
+		expect(SpriteSheet.draw.calls[0].args[3]).toEqual(fireball.y);
+
+		// Pruebo step()
+		fireball.board = {remove: function(){}, collide: function() {}};
+		var dt = 2;
+		fireball.step(dt);
+		expect(fireball.vx).toEqual(70*2);
+
+		var bolafuego2 = new PlayerFireBall(2,-Game.height-1,2);
+		bolafuego2.board = {remove: function(){}, collide: function() {}};
+		spyOn(bolafuego2.board, "remove");
+		bolafuego2.step(dt);
+		expect(bolafuego2.board.remove).toHaveBeenCalled();
+	});
+});

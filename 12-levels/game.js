@@ -9,44 +9,132 @@ var sprites = {
     explosion: { sx: 0, sy: 64, w: 64, h: 64, frames: 12 }
 };
 
-
 var enemies = {
-    // B, C y E substituirán a los valores por defecto definidos en la
-    // variable baseParameters del constructor Enemy(). Ver
-    // comentarios en el código del constructor al final del fichero.
-    basic: { x: 100, y: -50, sprite: 'enemy_purple', B: 100, C: 4, E: 100, health: 20 }
+	basic: { x: 100, y: -50, sprite: 'enemy_purple', B: 100, C: 4, E: 100, health: 20 },
+    // straight sólo tiene el parámetro E para la velocidad vertical,
+    // por lo que se mueve hacia abajo a velocidad constante.
+    straight: { x: 0,   y: -50, sprite: 'enemy_ship', health: 10, 
+		E: 100 },
+
+    //  ltr (left to right) tiene velocidad constante vertical pero
+    //  tiene parámetros B y C que le dotan de una velocidad
+    //  horizontal sinusoidal suave.
+    ltr:      { x: 0,   y: -100, sprite: 'enemy_purple', health: 10, 
+		B: 75, C: 1, E: 100  },
+
+    // circle tiene velocidad sinusoidal vx e vy, que junto al
+    // parámetro H de desplazamiento en el tiempo le dotan de un
+    // movimiento circular.
+    circle:   { x: 250,   y: -50, sprite: 'enemy_circle', health: 10, 
+		A: 0,  B: -100, C: 1, E: 20, F: 100, G: 1, H: Math.PI/2 },
+
+    //  wiggle y step tienen los mismos parámetros pero con diferentes
+    //  magnitudes que les hacen serpentear de manera diferente según
+    //  van bajando.
+    wiggle:   { x: 100, y: -50, sprite: 'enemy_bee', health: 20, 
+		B: 50, C: 4, E: 100 },
+    step:     { x: 0,   y: -50, sprite: 'enemy_circle', health: 10,
+		B: 150, C: 1.2, E: 75 }
 };
 
-var OBJECT_PLAYER        =  1,
-OBJECT_PLAYER_PROJECTILE =  2,
-OBJECT_ENEMY             =  4,
-OBJECT_ENEMY_PROJECTILE  =  8,
-OBJECT_POWERUP           = 16;
+
+var OBJECT_PLAYER            =  1,
+    OBJECT_PLAYER_PROJECTILE =  2,
+    OBJECT_ENEMY             =  4,
+    OBJECT_ENEMY_PROJECTILE  =  8,
+    OBJECT_POWERUP           = 16;
 
 var startGame = function() {
-    Game.setBoard(0,new Starfield(20,0.4,100,true))
-    Game.setBoard(1,new Starfield(50,0.6,100))
+    Game.setBoard(0,new Starfield(20,0.4,100,true));
+    Game.setBoard(1,new Starfield(50,0.6,100));
     Game.setBoard(2,new Starfield(100,1.0,50));
     Game.setBoard(3,new TitleScreen("Alien Invasion", 
                                     "Press fire to start playing",
                                     playGame));
-}
+};
 
+
+
+// Definición del nivel level1.  
+
+// Está definido por una colección de
+// baterías de naves enemigas, una por fila. Para cada fila, los
+// enemigos de esa batería se comienzan a crear cuando llega el
+// Comienzo de la batería, y se están creando hasta que llega el Fin
+// de la batería, con una separación entre cada dos enemigos creados
+// de Frecuencia ms.  Para cada tanda de enemigos se especifica su
+// tipo para poder encontrar su plantilla en enemies, y parámetros
+// override que substituyen a los de la plantilla en enemies para ese
+// enemigo.
+
+var level1 = [
+  //  Comienzo, Fin,   Frecuencia,  Tipo,       Override
+    [ 0,        4000,  300,         'step'    , { x: 20  } ],
+    [ 6000,     13000, 800,         'ltr'                  ],
+    [ 8000,     14000, 800,         'ltr'     , { x: 90  } ],
+    [ 10000,    16000, 600,         'circle'               ],
+    [ 17800,    20000, 500,         'straight', { x: 50  } ],
+    [ 18200,    20000, 500,         'straight', { x: 90  } ],
+    [ 18200,    20000, 500,         'straight', { x: 10  } ],
+    [ 22000,    25000, 400,         'wiggle',   { x: 150 } ],
+    [ 22000,    25000, 400,         'wiggle',   { x: 100 } ]
+];
+
+var level2 = [
+  //  Comienzo, Fin,   Frecuencia,  Tipo,       Override
+    [ 0,        6000,  500,         'step'    , { x: 20  } ],
+    [ 5000,     13000, 800,         'ltr'                  ],
+    [ 8000,     14000, 800,         'ltr'     , { x: 90  } ],
+    [ 10000,    14000, 800,         'ltr'     , { x: 150  } ],
+    [ 10000,    16000, 300,         'circle'               ],
+    [ 16000,    20000, 400,         'wiggle',   { x: 150 } ],
+    [ 17000,    20000, 400,         'wiggle',   { x: 100 } ],
+    [ 18000,    20000, 400,         'wiggle',   { x: 50 } ],
+    [ 19000,    20000, 400,         'wiggle',   { x: 0 } ]
+];
+
+var levelStatus = 0;
 
 var playGame = function() {
     var board = new GameBoard();
-
-    // Se añade un enemigo con las propiedades definidas en enemies.basic
-    board.add(new Enemy(enemies.basic));
-    // Se añade un enemigo con las propiedades definidas en
-    // enemies.basic, pero con la propiedad x = 200 definida en el
-    // segundo argumento de la llamada al constructor. Ver comentarios en el
-    // constructor Enemy al final de este fichero.
-    board.add(new Enemy(enemies.basic, { x: 200 }));
-
     board.add(new PlayerShip());
+
+    // Se un nuevo nivel al tablero de juego, pasando la definición de
+    // nivel level1 y la función callback a la que llamar si se ha
+    // ganado el juego
+	if (levelStatus === 1){
+		board.add(new Level(level2, winGame));
+	}else{
+    	board.add(new Level(level1, nextGame));
+	};
     Game.setBoard(3,board);
-}
+};
+
+// Llamada cuando ha pasado de nivel
+var nextGame = function() {
+	levelStatus += 1;
+    Game.setBoard(3,new TitleScreen("Level done!", 
+                                    "Press fire to play next level",
+                                    playGame));
+};
+
+// Llamada cuando han desaparecido todos los enemigos del nivel sin
+// que alcancen a la nave del jugador
+var winGame = function() {
+    Game.setBoard(3,new TitleScreen("You win!", 
+                                    "Press fire to play again",
+                                    playGame));
+};
+
+
+// Llamada cuando la nave del jugador ha sido alcanzada, para
+// finalizar el juego
+var loseGame = function() {
+    Game.setBoard(3,new TitleScreen("You lose!", 
+                                    "Press fire to play again",
+                                    playGame));
+};
+
 
 
 // Si se construye con clear==true no se pintan estrellas con fondo
@@ -120,10 +208,11 @@ var Starfield = function(speed,opacity,numStars,clear) {
     }
 }
 
+
 // La clase PlayerShip tambien ofrece la interfaz step(), draw() para
 // poder ser dibujada desde el bucle principal del juego
 var PlayerShip = function() { 
-    this.setup('ship', { vx: 0, frame: 0, reloadTime: 0.25, maxVel: 200 });
+    this.setup('ship', { vx: 0, reloadTime: 0.25, maxVel: 200 });
 
     this.reload = this.reloadTime;
     this.x = Game.width/2 - this.w / 2;
@@ -138,7 +227,7 @@ var PlayerShip = function() {
 
 		if(this.x < 0) { this.x = 0; }
 		else if(this.x > Game.width - this.w) { 
-			this.x = Game.width - this.w 
+			this.x = Game.width - this.w;
 		}
 
 		this.reload-=dt;
@@ -170,13 +259,20 @@ var PlayerShip = function() {
 				// Se añade al gameboard 1 bola de fuego a la derecha
 				this.board.add(new PlayerFireBall(this.x+this.w,this.y+this.h/2,1.5));
 		}
-    }
-}
+    };
+};
 
 // Heredamos del prototipo new Sprite()
 PlayerShip.prototype = new Sprite();
 PlayerShip.prototype.type = OBJECT_PLAYER;
 
+// Llamada cuando una nave enemiga colisiona con la nave del usuario
+PlayerShip.prototype.hit = function(damage) {
+	this.board.add(new Explosion(this.x + this.w/2, 
+                                     this.y + this.h/2));
+	this.board.remove(this);
+	setTimeout(function(){loseGame()},700);
+};
 
 
 // Constructor para los misiles.
@@ -203,7 +299,6 @@ PlayerMissile.prototype.step = function(dt)  {
     }
 };
 
-
 // Constructor de las bolas de fuego.
 var PlayerFireBall = function(x,y, move) {
 	this.setup('fireball',{ vy:  -1400, vx: 70 * move,  damage: 100});
@@ -227,8 +322,6 @@ PlayerFireBall.prototype.step = function(dt)  {
 		this.board.remove(this); 
     }
 };
-
-
 
 // Constructor para las naves enemigas. Un enemigo se define mediante
 // un conjunto de propiedades provenientes de 3 sitios distintos, que
@@ -263,7 +356,7 @@ var Enemy = function(blueprint,override) {
     // pudiendo modificar los definidos en baseParameters y en
     // blueprint
     this.merge(override);
-}
+};
 
 Enemy.prototype = new Sprite();
 Enemy.prototype.type = OBJECT_ENEMY;
@@ -304,16 +397,16 @@ Enemy.prototype.step = function(dt) {
 
     var collision = this.board.collide(this,OBJECT_PLAYER);
     if(collision) {
-		collision.hit(this.damage);
-		this.board.remove(this);
+	collision.hit(this.damage);
+	this.board.remove(this);
     }
 
     if(this.y > Game.height ||
        this.x < -this.w ||
        this.x > Game.width) {
-		this.board.remove(this);
+	this.board.remove(this);
     }
-}
+};
 
 Enemy.prototype.hit = function(damage) {
     this.health -= damage;
@@ -325,7 +418,6 @@ Enemy.prototype.hit = function(damage) {
 }
 
 
-
 // Constructor para la explosión
 
 var Explosion = function(centerX,centerY) {
@@ -333,20 +425,20 @@ var Explosion = function(centerX,centerY) {
     this.x = centerX - this.w/2;
     this.y = centerY - this.h/2;
     this.subFrame = 0;
-}
+};
 
 Explosion.prototype = new Sprite();
 
 Explosion.prototype.step = function(dt) {
-    this.frame = Math.floor(this.subFrame++ / 3);
-    if(this.subFrame >= 36) {
+    this.frame = Math.floor(this.subFrame++ / 2);
+    if(this.subFrame >= 24) {
 	this.board.remove(this);
     }
 }
 
 
+
 $(function() {
     Game.initialize("game",sprites,startGame);
 });
-
 
